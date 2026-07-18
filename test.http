@@ -1,0 +1,12 @@
+### Test Image Upload
+POST http://localhost:5000/api/analyze/document
+Content-Type: multipart/form-data; boundary=MyBoundary
+
+--MyBoundary
+Content-Disposition: form-data; name="file"; filename="Screenshot 2024-11-15 154505.png"
+Content-Type: image/png
+
+< ./Screenshot 2024-11-15 154505.png
+--MyBoundary--
+### Get All Analysis Logs from Database
+GET http://localhost:5000/api/analyze/history
