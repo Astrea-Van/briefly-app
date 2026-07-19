@@ -38,6 +38,10 @@ const authRoutes = require('./routes/authRoutes'); // 3. Import auth routes
 app.use('/api/analyze', analyzeRoutes);
 app.use('/api/auth', authRoutes); // 4. Register auth routes
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
