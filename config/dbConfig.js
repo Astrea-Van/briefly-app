@@ -1,12 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.resolve(__dirname, '../history.db');
+// Vercel only allows writing files to the /tmp folder in production.
+// This block ensures it works both locally and on Vercel without breaking!
+const isProduction = process.env.NODE_ENV === 'production';
+const dbPath = isProduction 
+    ? path.join('/tmp', 'history.db') 
+    : path.resolve(__dirname, '../history.db');
+
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Database connection failed:', err.message);
     } else {
-        console.log('Connected to the SQLite database.');
+        console.log(`Connected to the SQLite database at: ${dbPath}`);
     }
 });
 
