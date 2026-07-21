@@ -9,24 +9,32 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust Vercel's reverse proxy for secure cookies
+app.set('trust proxy', 1);
+
 // Initialize Database Connection
 require('./config/dbConfig');
 
 // Core Middlewares
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ 
+    origin: true, 
+    credentials: true 
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the public folder
 app.use(express.static(path.join(process.cwd(), 'public')));
 
-// Session Configuration
+// Session Configuration (Configured for Vercel Serverless)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'supersecretkey',
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: { 
         secure: process.env.NODE_ENV === 'production', 
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 
     }
