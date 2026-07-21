@@ -15,11 +15,11 @@ require('./config/dbConfig');
 // Middleware
 app.use(cors({
     origin: true,
-    credentials: true // Crucial to allow sessions/cookies across frontend/backend
+    credentials: true // Allow sessions/cookies across frontend/backend
 }));
 app.use(express.json());
 
-// Serve static files from the 'public' directory
+// Serve static frontend files from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configure Session Middleware
@@ -41,14 +41,15 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/api/analyze', analyzeRoutes);
 app.use('/api/auth', authRoutes);
 
-// Explicit root route to serve index.html (Fixes "Cannot GET /" on Vercel)
+// Catch-all route: serves index.html for any unhandled routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-if (process.env.NODE_ENV !== 'production') {
+// Run server locally (Vercel handles routing automatically in production)
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+        console.log(`Server running locally on port ${PORT}`);
     });
 }
 

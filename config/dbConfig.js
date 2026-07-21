@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// Create connection pool to Neon Cloud Postgres using Vercel's DATABASE_URL variable
+// Create connection pool using Vercel's DATABASE_URL
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
@@ -8,20 +8,20 @@ const pool = new Pool({
     }
 });
 
-// Test connection and print status to terminal logs
+// Verify connection
 pool.connect((err, client, release) => {
     if (err) {
-        console.error('Database connection failed:', err.message);
+        console.error('Database connection error:', err.message);
     } else {
-        console.log('Connected to Neon PostgreSQL database successfully.');
+        console.log('Connected to Neon PostgreSQL cloud database.');
         release();
     }
 });
 
-// Initialize Tables on server startup
+// Initialize Database Tables
 const initDb = async () => {
     try {
-        // 1. Create Users Table
+        // 1. Users Table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -31,7 +31,7 @@ const initDb = async () => {
             );
         `);
 
-        // 2. Create Analysis History Table with foreign key constraint
+        // 2. Analysis History Table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS analysis_history (
                 id SERIAL PRIMARY KEY,
@@ -45,60 +45,44 @@ const initDb = async () => {
 
         console.log('Database tables ready.');
     } catch (err) {
-        console.error('Error creating tables:', err.message);
+        console.error('Error creating database tables:', err.message);
     }
 };
 
 initDb();
 
-// --- HELPER QUERIES (Using Async/Await for zero callback errors) ---
+// --- HELPER QUERIES (exact same signature as original code) ---
 
 // Save a new user
 const createUser = async (username, hashedPassword) => {
-    try {
-        const sql = `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id;`;
-        const res = await pool.query(sql, [username, hashedPassword]);
-        return res.rows[0].id;
-    } catch (err) {
-        throw err;
-    }
+    const sql = `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id;`;
+    const res = await pool.query(sql, [username, hashedPassword]);
+    return res.rows[0].id;
 };
 
 // Find a user by username
 const findUserByUsername = async (username) => {
-    try {
-        const sql = `SELECT * FROM users WHERE username = $1;`;
-        const res = await pool.query(sql, [username]);
-        return res.rows[0] || null;
-    } catch (err) {
-        throw err;
-    }
+    const sql = `SELECT * FROM users WHERE username = $1;`;
+    const res = await pool.query(sql, [username]);
+    return res.rows[0] || null;
 };
 
 // Save history linked to a user_id
 const saveHistory = async (userId, filename, fileType, analysis) => {
-    try {
-        const sql = `
-            INSERT INTO analysis_history (user_id, filename, file_type, analysis) 
-            VALUES ($1, $2, $3, $4) 
-            RETURNING id;
-        `;
-        const res = await pool.query(sql, [userId, filename, fileType, analysis]);
-        return res.rows[0].id;
-    } catch (err) {
-        throw err;
-    }
+    const sql = `
+        INSERT INTO analysis_history (user_id, filename, file_type, analysis) 
+        VALUES ($1, $2, $3, $4) 
+        RETURNING id;
+    `;
+    const res = await pool.query(sql, [userId, filename, fileType, analysis]);
+    return res.rows[0].id;
 };
 
 // Fetch history only for a specific user_id
 const getHistory = async (userId) => {
-    try {
-        const sql = `SELECT * FROM analysis_history WHERE user_id = $1 ORDER BY created_at DESC;`;
-        const res = await pool.query(sql, [userId]);
-        return res.rows;
-    } catch (err) {
-        throw err;
-    }
+    const sql = `SELECT * FROM analysis_history WHERE user_id = $1 ORDER BY created_at DESC;`;
+    const res = await pool.query(sql, [userId]);
+    return res.rows;
 };
 
 module.exports = {
