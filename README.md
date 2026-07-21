@@ -21,7 +21,7 @@ Check out the live application hosted on Vercel:
 ## ✨ Features
 
 - **Document Analysis** — Upload PDFs, images (PNG, JPEG), or text files to generate instant AI insights.
-- **Powered by Gemini AI** — Leverages Google's Gemini models for precise document summarization and extraction.
+- **Powered by Gemini AI** — Leverages Google's Gemini's Flash-3.5 model for precise document summarization and extraction.
 - **User Authentication** — Secure user signup and login flow.
 - **History Tracking** — Automatically logs past analysis sessions per user account into a PostgreSQL database.
 - **Responsive UI** — Clean, modern dark-themed interface built for fast user interaction.
