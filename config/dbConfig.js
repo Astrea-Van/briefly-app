@@ -1,27 +1,17 @@
 const { Pool } = require('pg');
 
-// Create connection pool using Vercel's DATABASE_URL
+// Initialize PostgreSQL Pool with SSL configuration for cloud databases (Neon / Supabase)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Verify connection
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('Database connection error:', err.message);
-    } else {
-        console.log('Connected to Neon PostgreSQL cloud database.');
-        release();
-    }
-});
+let isDbInitialized = false;
 
-// Initialize Database Tables
-const initDb = async () => {
+// Safe, non-blocking table creation check
+const ensureDbInit = async () => {
+    if (isDbInitialized) return;
     try {
-        // 1. Users Table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -31,7 +21,6 @@ const initDb = async () => {
             );
         `);
 
-        // 2. Analysis History Table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS analysis_history (
                 id SERIAL PRIMARY KEY,
@@ -43,45 +32,46 @@ const initDb = async () => {
             );
         `);
 
-        console.log('Database tables ready.');
+        isDbInitialized = true;
+        console.log('Database tables verified successfully.');
     } catch (err) {
-        console.error('Error creating database tables:', err.message);
+        console.error('Database initialization warning:', err.message);
     }
 };
 
-initDb();
+// Internal query wrapper ensuring tables are instantiated before executing queries
+const query = async (text, params) => {
+    await ensureDbInit();
+    return pool.query(text, params);
+};
 
-// --- HELPER QUERIES (exact same signature as original code) ---
+// --- HELPER FUNCTIONS ---
 
-// Save a new user
 const createUser = async (username, hashedPassword) => {
     const sql = `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id;`;
-    const res = await pool.query(sql, [username, hashedPassword]);
+    const res = await query(sql, [username, hashedPassword]);
     return res.rows[0].id;
 };
 
-// Find a user by username
 const findUserByUsername = async (username) => {
     const sql = `SELECT * FROM users WHERE username = $1;`;
-    const res = await pool.query(sql, [username]);
+    const res = await query(sql, [username]);
     return res.rows[0] || null;
 };
 
-// Save history linked to a user_id
 const saveHistory = async (userId, filename, fileType, analysis) => {
     const sql = `
         INSERT INTO analysis_history (user_id, filename, file_type, analysis) 
         VALUES ($1, $2, $3, $4) 
         RETURNING id;
     `;
-    const res = await pool.query(sql, [userId, filename, fileType, analysis]);
+    const res = await query(sql, [userId, filename, fileType, analysis]);
     return res.rows[0].id;
 };
 
-// Fetch history only for a specific user_id
 const getHistory = async (userId) => {
     const sql = `SELECT * FROM analysis_history WHERE user_id = $1 ORDER BY created_at DESC;`;
-    const res = await pool.query(sql, [userId]);
+    const res = await query(sql, [userId]);
     return res.rows;
 };
 
