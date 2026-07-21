@@ -1,7 +1,8 @@
 const express = require('express');
-const session = require('express-session'); // 1. Import express-session
+const session = require('express-session');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 
 dotenv.config();
 
@@ -14,29 +15,36 @@ require('./config/dbConfig');
 // Middleware
 app.use(cors({
     origin: true,
-    credentials: true // Crucial to allow sessions/cookies to work across frontend/backend
+    credentials: true // Crucial to allow sessions/cookies across frontend/backend
 }));
 app.use(express.json());
-app.use(express.static('public'));
 
-// 2. Configure Session Middleware
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Configure Session Middleware
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'supersecretkey', // Use an env variable or fallback
+    secret: process.env.SESSION_SECRET || 'supersecretkey',
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: false, // Set to true if using HTTPS in production
-        httpOnly: true, // Prevents frontend JS from reading the cookie (XSS protection)
-        maxAge: 24 * 60 * 60 * 1000 // Cookie expires in 1 day
+        secure: false, // Set to true if enforcing strict HTTPS cookies
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
     }
 }));
 
-// Routes
+// API Routes
 const analyzeRoutes = require('./routes/analyzeRoutes');
-const authRoutes = require('./routes/authRoutes'); // 3. Import auth routes
+const authRoutes = require('./routes/authRoutes');
 
 app.use('/api/analyze', analyzeRoutes);
-app.use('/api/auth', authRoutes); // 4. Register auth routes
+app.use('/api/auth', authRoutes);
+
+// Explicit root route to serve index.html (Fixes "Cannot GET /" on Vercel)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
