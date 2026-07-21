@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 
 dotenv.config();
 
@@ -40,7 +41,15 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Backend connected successfully!' });
 });
 
-// Run local listener outside Vercel
+// Serve static assets from public
+app.use(express.static(path.join(process.cwd(), 'public')));
+
+// Fallback: serve index.html for any root or frontend client route
+app.get('*', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+});
+
+// Local dev listener
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`Server running locally on port ${PORT}`);
