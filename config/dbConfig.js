@@ -1,113 +1,108 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 
-// Vercel only allows writing files to the /tmp folder in production.
-// This block ensures it works both locally and on Vercel without breaking!
-const isProduction = process.env.NODE_ENV === 'production';
-const dbPath = isProduction 
-    ? path.join('/tmp', 'history.db') 
-    : path.resolve(__dirname, '../history.db');
-
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Database connection failed:', err.message);
-    } else {
-        console.log(`Connected to the SQLite database at: ${dbPath}`);
+// Create connection pool to Neon Cloud Postgres using Vercel's DATABASE_URL variable
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
     }
 });
 
-// Initialize both Tables (Users & Analysis History)
-db.serialize(() => {
-    // 1. Create Users Table
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // 2. Create/Update Analysis History Table with user_id
-    db.run(`
-        CREATE TABLE IF NOT EXISTS analysis_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            filename TEXT NOT NULL,
-            file_type TEXT NOT NULL,
-            analysis TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    `, (err) => {
-        if (err) {
-            console.error('Error creating tables:', err.message);
-        } else {
-            console.log('Database tables ready.');
-        }
-    });
+// Test connection and print status to terminal logs
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('Database connection failed:', err.message);
+    } else {
+        console.log('Connected to Neon PostgreSQL database successfully.');
+        release();
+    }
 });
 
-// --- HELPER QUERIES wrapped in Promises ---
+// Initialize Tables on server startup
+const initDb = async () => {
+    try {
+        // 1. Create Users Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 2. Create Analysis History Table with foreign key constraint
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                filename VARCHAR(255) NOT NULL,
+                file_type VARCHAR(50) NOT NULL,
+                analysis TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        console.log('Database tables ready.');
+    } catch (err) {
+        console.error('Error creating tables:', err.message);
+    }
+};
+
+initDb();
+
+// --- HELPER QUERIES (Using Async/Await for zero callback errors) ---
 
 // Save a new user
-const createUser = (username, hashedPassword) => {
-    return new Promise((resolve, reject) => {
-        const sql = `INSERT INTO users (username, password) VALUES (?, ?)`;
-        db.run(sql, [username, hashedPassword], function (err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(this.lastID);
-            }
-        });
-    });
+const createUser = async (username, hashedPassword) => {
+    try {
+        const sql = `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id;`;
+        const res = await pool.query(sql, [username, hashedPassword]);
+        return res.rows[0].id;
+    } catch (err) {
+        throw err;
+    }
 };
 
 // Find a user by username
-const findUserByUsername = (username) => {
-    return new Promise((resolve, reject) => {
-        const sql = `SELECT * FROM users WHERE username = ?`;
-        db.get(sql, [username], (err, row) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(row);
-            }
-        });
-    });
+const findUserByUsername = async (username) => {
+    try {
+        const sql = `SELECT * FROM users WHERE username = $1;`;
+        const res = await pool.query(sql, [username]);
+        return res.rows[0] || null;
+    } catch (err) {
+        throw err;
+    }
 };
 
 // Save history linked to a user_id
-const saveHistory = (userId, filename, fileType, analysis) => {
-    return new Promise((resolve, reject) => {
-        const sql = `INSERT INTO analysis_history (user_id, filename, file_type, analysis) VALUES (?, ?, ?, ?)`;
-        db.run(sql, [userId, filename, fileType, analysis], function (err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(this.lastID);
-            }
-        });
-    });
+const saveHistory = async (userId, filename, fileType, analysis) => {
+    try {
+        const sql = `
+            INSERT INTO analysis_history (user_id, filename, file_type, analysis) 
+            VALUES ($1, $2, $3, $4) 
+            RETURNING id;
+        `;
+        const res = await pool.query(sql, [userId, filename, fileType, analysis]);
+        return res.rows[0].id;
+    } catch (err) {
+        throw err;
+    }
 };
 
 // Fetch history only for a specific user_id
-const getHistory = (userId) => {
-    return new Promise((resolve, reject) => {
-        const sql = `SELECT * FROM analysis_history WHERE user_id = ? ORDER BY created_at DESC`;
-        db.all(sql, [userId], (err, rows) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(rows);
-            }
-        });
-    });
+const getHistory = async (userId) => {
+    try {
+        const sql = `SELECT * FROM analysis_history WHERE user_id = $1 ORDER BY created_at DESC;`;
+        const res = await pool.query(sql, [userId]);
+        return res.rows;
+    } catch (err) {
+        throw err;
+    }
 };
 
 module.exports = {
-    db,
+    pool,
     createUser,
     findUserByUsername,
     saveHistory,
