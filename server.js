@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 
 dotenv.config();
 
@@ -11,10 +12,13 @@ const PORT = process.env.PORT || 5000;
 // Initialize Database Connection
 require('./config/dbConfig');
 
-// Middleware
+// Core Middlewares
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from the public folder
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Session Configuration
 app.use(session({
@@ -40,9 +44,12 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'API running smoothly' });
 });
 
-// Express 5 compatible catch-all route (Fixes PathError for unmatched API routes)
-app.use('/api/*splat', (req, res) => {
-    res.status(404).json({ error: 'API endpoint not found' });
+// Root & fallback route (Express 5 syntax compatible with path-to-regexp)
+app.get('/*path', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+        return next();
+    }
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
 
 // Local dev listener
