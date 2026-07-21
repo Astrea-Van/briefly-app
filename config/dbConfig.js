@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// Initialize PostgreSQL Pool with SSL configuration for cloud databases (Neon / Supabase)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
@@ -8,7 +7,6 @@ const pool = new Pool({
 
 let isDbInitialized = false;
 
-// Safe, non-blocking table creation check
 const ensureDbInit = async () => {
     if (isDbInitialized) return;
     try {
@@ -33,13 +31,12 @@ const ensureDbInit = async () => {
         `);
 
         isDbInitialized = true;
-        console.log('Database tables verified successfully.');
+        console.log('Database tables ready.');
     } catch (err) {
         console.error('Database initialization warning:', err.message);
     }
 };
 
-// Internal query wrapper ensuring tables are instantiated before executing queries
 const query = async (text, params) => {
     await ensureDbInit();
     return pool.query(text, params);

@@ -2,22 +2,23 @@ const express = require('express');
 const session = require('express-session');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize Database connection module
+// Initialize Database Connection
 require('./config/dbConfig');
 
 // Middleware
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static frontend files safely
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Session Configuration
 app.use(session({
@@ -25,9 +26,9 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, 
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        maxAge: 24 * 60 * 60 * 1000 
     }
 }));
 
@@ -38,12 +39,17 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/api/analyze', analyzeRoutes);
 app.use('/api/auth', authRoutes);
 
-// Health Check Endpoint
+// Health check
 app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'ok', environment: process.env.NODE_ENV || 'development' });
+    res.json({ status: 'ok' });
 });
 
-// Local Development Listener
+// Serve frontend for any non-API routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+});
+
+// Run local listener only outside Vercel
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`Server running locally on port ${PORT}`);
