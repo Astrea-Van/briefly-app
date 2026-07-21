@@ -1,13 +1,8 @@
 {
   "version": 2,
-  "functions": {
-    "server.js": {
-      "includeFiles": "public/**"
-    }
-  },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "destination": "/server.js"
     }
   ]

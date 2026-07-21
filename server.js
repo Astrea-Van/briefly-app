@@ -2,7 +2,6 @@ const express = require('express');
 const session = require('express-session');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const path = require('path');
 
 dotenv.config();
 
@@ -36,17 +35,14 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/api/analyze', analyzeRoutes);
 app.use('/api/auth', authRoutes);
 
-// Health check
+// Health check endpoint
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Backend connected successfully!' });
+    res.json({ status: 'ok', message: 'API running smoothly' });
 });
 
-// Serve static assets from public
-app.use(express.static(path.join(process.cwd(), 'public')));
-
-// Fallback: serve index.html for any root or frontend client route
-app.get('*', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+// Express 5 compatible catch-all route (Fixes PathError for unmatched API routes)
+app.use('/api/*splat', (req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // Local dev listener
